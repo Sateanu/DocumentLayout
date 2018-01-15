@@ -340,9 +340,13 @@ namespace VoronoiLayout
 		waitKey(500);
 		src.copyTo(layoutImg);
 		DrawBoundingRects(layoutImg, newBoundingRects, outcolor);
-		imshow("Contours - Layout", layoutImg);*/
+		imshow("Contours - Layout", layoutImg);
+		
+		*/
 
+#ifdef _DEBUG
 		waitKey(0);
+#endif // _DEBUG
 
 		return newBoundingRects;
 	}

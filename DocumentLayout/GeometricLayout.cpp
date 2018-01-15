@@ -223,7 +223,9 @@ namespace GeometricLayout
 		Mat cannyOutput;
 		Canny(src, cannyOutput, 100, 200);
 
+#ifdef _DEBUG
 		imshow("Canny", cannyOutput);
+#endif // _DEBUG
 		//waitKey(0);
 
 		/*Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1, 1));
@@ -265,18 +267,22 @@ namespace GeometricLayout
 		vector<Rect> newBoundingRects;
 		while (!UpdateBoundingRects(thrshImg, boundingRects, newBoundingRects, 10))
 		{
+#ifdef _DEBUG
 			waitKey(10);
 			src.copyTo(layoutImg);
 			DrawBoundingRects(layoutImg, newBoundingRects, outcolor);
 			imshow("Contours - Layout", layoutImg);
+#endif // _DEBUG
 		}
 
+#ifdef _DEBUG
 		waitKey(500);
 		src.copyTo(layoutImg);
 		DrawBoundingRects(layoutImg, newBoundingRects, outcolor);
 		imshow("Contours - Layout", layoutImg);
 
 		waitKey(0);
+#endif // _DEBUG
 
 		return newBoundingRects;
 	}

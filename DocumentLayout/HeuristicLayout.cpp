@@ -262,6 +262,8 @@ namespace HeuristicLayout
 			brect.width /= sizeMaxRatio;
 			brect.height /= sizeMaxRatio;
 			rectangle(original, brect, outcolor, 2);
+
+			ret.emplace_back(brect);
 		}
 
 #ifdef _DEBUG

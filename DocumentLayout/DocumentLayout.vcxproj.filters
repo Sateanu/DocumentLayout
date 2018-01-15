@@ -38,5 +38,11 @@
     <ClInclude Include="VoronoiLayout.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Voting.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
