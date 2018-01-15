@@ -138,11 +138,13 @@
   <ItemGroup>
     <ClCompile Include="GeometricLayout.cpp" />
     <ClCompile Include="HeuristicLayout.cpp" />
+    <ClCompile Include="VoronoiLayout.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GeometricLayout.h" />
     <ClInclude Include="HeuristicLayout.h" />
+    <ClInclude Include="VoronoiLayout.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

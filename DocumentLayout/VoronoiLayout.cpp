@@ -1,6 +1,6 @@
-#include "GeometricLayout.h"
+#include "VoronoiLayout.h"
 
-namespace GeometricLayout
+namespace VoronoiLayout
 {
 	inline float EuclidianDistance(int x1, int y1, int x2, int y2)
 	{
@@ -11,7 +11,7 @@ namespace GeometricLayout
 	{
 		int a = (x1 - x2);
 		int b = (y1 - y2);
-		
+
 		if (a < 0)
 			a = -a;
 
@@ -217,36 +217,93 @@ namespace GeometricLayout
 			rectangle(src, brect, color, 1);
 		}
 	}
+	void draw_point(Mat& img, Point2f fp, Scalar color)
+	{
+		circle(img, fp, 2, color, CV_FILLED, CV_AA, 0);
+	}
+
+	// Draw delaunay triangles
+	void draw_delaunay(Mat& img, Subdiv2D& subdiv, Scalar delaunay_color)
+	{
+
+		vector<Vec6f> triangleList;
+		subdiv.getTriangleList(triangleList);
+		vector<Point> pt(3);
+		Size size = img.size();
+		Rect rect(0, 0, size.width, size.height);
+
+		for (size_t i = 0; i < triangleList.size(); i++)
+		{
+			Vec6f t = triangleList[i];
+			pt[0] = Point(cvRound(t[0]), cvRound(t[1]));
+			pt[1] = Point(cvRound(t[2]), cvRound(t[3]));
+			pt[2] = Point(cvRound(t[4]), cvRound(t[5]));
+
+			// Draw rectangles completely inside the image.
+			if (rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
+			{
+				line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
+				line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
+				line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
+			}
+		}
+	}
+
+	//Draw voronoi diagram
+	void draw_voronoi(Mat& img, Subdiv2D& subdiv)
+	{
+		vector<vector<Point2f> > facets;
+		vector<Point2f> centers;
+		subdiv.getVoronoiFacetList(vector<int>(), facets, centers);
+		
+		vector<Point> ifacet;
+		vector<vector<Point> > ifacets(1);
+
+		for (size_t i = 0; i < facets.size(); i++)
+		{
+			
+			ifacet.resize(facets[i].size());
+			for (size_t j = 0; j < facets[i].size(); j++)
+				ifacet[j] = facets[i][j];
+
+			ifacets[0] = ifacet;
+			polylines(img, ifacets, true, Scalar(), 1, CV_AA, 0);
+		}
+	}
+
+	float voronoiArea()
+	{
+		return 0.0f;
+	}
 
 	std::vector<Rect> DetectLayout(Mat src)
 	{
 		Mat cannyOutput;
+		Mat grayScale;
+		cvtColor(src, grayScale, CV_BGR2GRAY);
+
+
+		Rect rect(0, 0, src.size().width, src.size().height);
+		Subdiv2D subdiv(rect);
 		Canny(src, cannyOutput, 100, 200);
 
+		//HoughLines(grayScale, cannyOutput, CV_PI / 180, 15, 100);
+
+		
 		imshow("Canny", cannyOutput);
 		//waitKey(0);
-
-		/*Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1, 1));
-		dilate(cannyOutput, cannyOutput, element);*/
-
-
-		Mat blurOutput;
-		blur(cannyOutput, blurOutput, Size(5, 5));
-
-		/*imshow("Blur", blurOutput);
-		waitKey(0);*/
 
 		//Contours
 		vector <vector<Point>> contours;
 		vector<Vec4i> hierarchy;
-
 		Mat contoursImg;
 		src.copyTo(contoursImg);
-
-		findContours(cannyOutput, contours, hierarchy, RETR_LIST, CHAIN_APPROX_SIMPLE);
+		
+		findContours(cannyOutput, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 
 		Scalar incolor = Scalar(0, 0, 255);
 		Scalar outcolor = Scalar(255, 0, 0);
+		Scalar black = Scalar(0,0 , 0);
 		vector<Rect> boundingRects;
 		for (int i = 0; i < contours.size(); i++)
 		{
@@ -254,16 +311,25 @@ namespace GeometricLayout
 			Rect brect = boundingRect(contours[i]);
 			boundingRects.push_back(brect);
 			rectangle(contoursImg, brect, color, 1);
+			for (int j = 0; j < contours[i].size(); j++)
+			{
+				subdiv.insert(Point2f(contours[i][j].x, contours[i][j].y));
+			}
 		}
 
 		imshow("Contours", contoursImg);
-		Mat layoutImg;
+		Mat delauney = src.clone();
+		draw_voronoi(delauney, subdiv);
+
+		imshow("Delauney", delauney);
+
+		/*Mat layoutImg;
 		Mat thrshImg;
 		cvtColor(src, thrshImg, CV_BGR2GRAY);
-		threshold(thrshImg, thrshImg, 100, 255, THRESH_BINARY);
+		threshold(thrshImg, thrshImg, 100, 255, THRESH_BINARY);*/
 
 		vector<Rect> newBoundingRects;
-		while (!UpdateBoundingRects(thrshImg, boundingRects, newBoundingRects, 10))
+		/*while (!UpdateBoundingRects(thrshImg, boundingRects, newBoundingRects, 10))
 		{
 			waitKey(10);
 			src.copyTo(layoutImg);
@@ -274,7 +340,7 @@ namespace GeometricLayout
 		waitKey(500);
 		src.copyTo(layoutImg);
 		DrawBoundingRects(layoutImg, newBoundingRects, outcolor);
-		imshow("Contours - Layout", layoutImg);
+		imshow("Contours - Layout", layoutImg);*/
 
 		waitKey(0);
 

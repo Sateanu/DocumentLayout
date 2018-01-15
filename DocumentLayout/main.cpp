@@ -6,13 +6,14 @@
 #include <Windows.h>
 #include "HeuristicLayout.h"
 #include "GeometricLayout.h"
+#include "VoronoiLayout.h"
 
 using namespace cv;
 using namespace std;
 
 int main()
 {
-	Mat src = imread("pic.png");
+	Mat src = imread("pic1.png");
 	
 	if (src.empty())
 	{
@@ -24,7 +25,10 @@ int main()
 	//waitKey(0);
 
 	//HeuristicLayout::DetectLayout(src);
-	GeometricLayout::DetectLayout(src);
+	//GeometricLayout::DetectLayout(src);
+	VoronoiLayout::DetectLayout(src);
+
+
 
 	destroyAllWindows();
 	return 0;
