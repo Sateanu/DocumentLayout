@@ -252,7 +252,10 @@ namespace HeuristicLayout
 			Scalar color = outcolor;
 			Rect brect = boundingRect(contours[i]);
 			
+#ifdef _DEBUG
 			rectangle(color_dst, brect, outcolor, 1);
+#endif // _DEBUG
+
 
 			brect.x /= sizeMaxRatio;
 			brect.y /= sizeMaxRatio;

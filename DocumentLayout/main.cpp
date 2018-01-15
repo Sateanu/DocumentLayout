@@ -13,7 +13,7 @@ void DetectLayout01(Mat src);
 
 int main()
 {
-	Mat src = imread("pic.png");
+	Mat src = imread("pic1.png");
 	
 	if (src.empty())
 	{
@@ -164,7 +164,33 @@ int RectDistance2(Rect a, Rect b)
 	return min_distance;
 }
 
-bool UpdateBoundingRects(vector<Rect>& rects, vector<Rect>& finalRects, int D)
+float ImageBlackFactor(Mat img, Rect clip)
+{
+	img = img(clip);
+	cvtColor(img, img, CV_BGR2GRAY);
+	threshold(img, img, 100, 255, THRESH_BINARY);
+
+	int white = 0;
+	int black = 0;
+
+	for (int i = 0; i < clip.height; i++)
+		for (int j = 0; j < clip.width; j++)
+		{
+			if (img.at<uchar>(i, j) > 0)
+			{
+				black++;
+			}
+			else
+			{
+				white++;
+			}
+		}
+
+	return black / (float)(white + black);
+
+}
+
+bool UpdateBoundingRects(Mat img, vector<Rect>& rects, vector<Rect>& finalRects, int D)
 {
 	bool done = true;
 	
@@ -177,19 +203,28 @@ bool UpdateBoundingRects(vector<Rect>& rects, vector<Rect>& finalRects, int D)
 	bool findMore = false;
 	
 	newRect = searchRect[0];
+	float currentFactor = ImageBlackFactor(img, newRect);
 
 	do
 	{
 		findMore = false;
 		nextSearchRect.clear();
+		bool addToNextSearch = true;
 		for (int i = 1; i < searchRect.size(); i++)
 		{
 			int dist = RectDistance(newRect, searchRect[i]);
 			if (dist <= D)
 			{
-				done = false;
-				newRect |= searchRect[i];
-				findMore = true;
+				float nextFactor = ImageBlackFactor(img, newRect | searchRect[i]);
+
+				if (abs(nextFactor-currentFactor) < 0.2)
+				{
+					done = false;
+					newRect |= searchRect[i];
+					currentFactor = ImageBlackFactor(img, newRect);
+					findMore = true;
+					addToNextSearch = false;
+				}
 			}
 			else
 			{
@@ -257,7 +292,7 @@ void DetectLayout01(Mat src)
 	imshow("Contours", contoursImg);
 	Mat layoutImg;
 	vector<Rect> newBoundingRects;
-	while (!UpdateBoundingRects(boundingRects, newBoundingRects, 10))
+	while (!UpdateBoundingRects(src ,boundingRects, newBoundingRects, 10))
 	{
 		waitKey(10);
 		src.copyTo(layoutImg);
