@@ -21,9 +21,15 @@
     <ClCompile Include="HeuristicLayout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GeometricLayout.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HeuristicLayout.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometricLayout.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
