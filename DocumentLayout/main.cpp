@@ -12,7 +12,7 @@ using namespace std;
 
 int main()
 {
-	Mat src = imread("pic1.png");
+	Mat src = imread("pic.png");
 	
 	if (src.empty())
 	{

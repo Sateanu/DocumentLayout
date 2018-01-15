@@ -16,44 +16,6 @@ namespace GeometricLayout
 		return a * b;
 	}
 
-	int RectDistance(Rect a, Rect b)
-	{
-		int x1 = a.x;
-		int x1b = a.x + a.width;
-		int y1 = a.y;
-		int y1b = a.y + a.height;
-
-		int x2 = b.x;
-		int x2b = b.x + b.width;
-		int y2 = b.y;
-		int y2b = b.y + b.height;
-
-		bool left = x2b < x1;
-		bool right = x1b < x2;
-		bool bottom = y2b < y1;
-		bool top = y1b < y2;
-
-		if (top && left)
-			return Distance(x1, y1b, x2b, y2);
-		else if (left && bottom)
-			return Distance(x1, y1, x2b, y2b);
-		else if (bottom && right)
-			return Distance(x1b, y1, x2, y2b);
-		else if (right && top)
-			return Distance(x1b, y1b, x2, y2);
-		else if (left)
-			return abs(x1 - x2b);
-		else if (right)
-			return abs(x2 - x1b);
-		else if (bottom)
-			return abs(y1 - y2b);
-		else if (top)
-			return abs(y2 - y1b);
-		else
-			return 0;
-		//return RectDistance2(a,b);
-	}
-
 	int RectDistance2(Rect a, Rect b)
 	{
 		int x1 = a.x;
@@ -146,6 +108,44 @@ namespace GeometricLayout
 		const int total = img.rows * img.cols;
 
 		return (float)nz / total;
+	}
+
+	int RectDistance(Rect a, Rect b)
+	{
+		int x1 = a.x;
+		int x1b = a.x + a.width;
+		int y1 = a.y;
+		int y1b = a.y + a.height;
+
+		int x2 = b.x;
+		int x2b = b.x + b.width;
+		int y2 = b.y;
+		int y2b = b.y + b.height;
+
+		bool left = x2b < x1;
+		bool right = x1b < x2;
+		bool bottom = y2b < y1;
+		bool top = y1b < y2;
+
+		if (top && left)
+			return Distance(x1, y1b, x2b, y2);
+		else if (left && bottom)
+			return Distance(x1, y1, x2b, y2b);
+		else if (bottom && right)
+			return Distance(x1b, y1, x2, y2b);
+		else if (right && top)
+			return Distance(x1b, y1b, x2, y2);
+		else if (left)
+			return abs(x1 - x2b);
+		else if (right)
+			return abs(x2 - x1b);
+		else if (bottom)
+			return abs(y1 - y2b);
+		else if (top)
+			return abs(y2 - y1b);
+		else
+			return 0;
+		//return RectDistance2(a,b);
 	}
 
 	bool UpdateBoundingRects(Mat img, vector<Rect>& rects, vector<Rect>& finalRects, int D)
@@ -249,23 +249,23 @@ namespace GeometricLayout
 
 		imshow("Contours", contoursImg);
 		Mat layoutImg;
-
-		cvtColor(src, src, CV_BGR2GRAY);
-		threshold(src, src, 100, 255, THRESH_BINARY);
+		Mat thrshImg;
+		cvtColor(src, thrshImg, CV_BGR2GRAY);
+		threshold(thrshImg, thrshImg, 100, 255, THRESH_BINARY);
 
 		vector<Rect> newBoundingRects;
-		while (!UpdateBoundingRects(src, boundingRects, newBoundingRects, 10))
+		while (!UpdateBoundingRects(thrshImg, boundingRects, newBoundingRects, 10))
 		{
 			waitKey(10);
 			src.copyTo(layoutImg);
-			DrawBoundingRects(layoutImg, newBoundingRects, incolor);
-			imshow("Contours", layoutImg);
+			DrawBoundingRects(layoutImg, newBoundingRects, outcolor);
+			imshow("Contours - Layout", layoutImg);
 		}
 
 		waitKey(500);
 		src.copyTo(layoutImg);
-		DrawBoundingRects(layoutImg, newBoundingRects, incolor);
-		imshow("Contours", layoutImg);
+		DrawBoundingRects(layoutImg, newBoundingRects, outcolor);
+		imshow("Contours - Layout", layoutImg);
 
 		waitKey(0);
 
