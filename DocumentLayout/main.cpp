@@ -58,6 +58,21 @@ int main()
 
 	voting *= (255 / results.size());
 
+	// filter only max values
+	threshold(voting, voting, 255 / results.size() - 1, 255, 0);
+
+	vector <vector<Point>> contours;
+	vector<Vec4i> hierarchy;
+	findContours(voting, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+
+	Scalar outcolor = Scalar(255, 0, 0);
+	for (int i = 0; i < contours.size(); i++)
+	{
+		Scalar color = outcolor;
+		Rect brect = boundingRect(contours[i]);
+		rectangle(src, brect, outcolor, 2);
+	}
+
 	destroyAllWindows();
 	return 0;
 }
