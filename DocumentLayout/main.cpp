@@ -32,6 +32,15 @@ int main()
 									  VoronoiLayout::DetectLayout(src)
 									};
 
+	for (auto& v : results)
+	{
+		Mat m = Mat::zeros(src.rows, src.cols, CV_8UC1);
+		for (auto &r : v)
+		{
+			m(r) += Mat::ones(r.height, r.width, CV_8UC1) * 255;
+		}
+	}
+
 	Mat voting = Mat::zeros(src.rows, src.cols, CV_8UC1);
 	
 	Mat toDraw = src.clone();

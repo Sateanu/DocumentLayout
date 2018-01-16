@@ -259,15 +259,25 @@ namespace VoronoiLayout
 		vector<Point> ifacet;
 		vector<vector<Point> > ifacets(1);
 
+		float thresh = 4;
+
 		for (size_t i = 0; i < facets.size(); i++)
 		{
 			
-			ifacet.resize(facets[i].size());
-			for (size_t j = 0; j < facets[i].size(); j++)
-				ifacet[j] = facets[i][j];
+			//ifacet.resize(facets[i].size());
+			ifacet.clear();
+
+			ifacet.push_back(facets[i][0]);
+			for (size_t j = 1; j < facets[i].size(); j++)
+			{
+				const Point &p = facets[i][j];
+				if (norm(p - *ifacet.rbegin()) < thresh)
+					ifacet.push_back(p);
+			}
 
 			ifacets[0] = ifacet;
-			polylines(img, ifacets, true, Scalar(), 1, CV_AA, 0);
+			//polylines(img, ifacets, false, Scalar(), 1, CV_AA, 0);
+			fillPoly(img, ifacets, Scalar(255));
 		}
 	}
 
@@ -318,10 +328,19 @@ namespace VoronoiLayout
 		}
 
 		imshow("Contours", contoursImg);
-		Mat delauney = src.clone();
+		Mat delauney = Mat::zeros(grayScale.size(), grayScale.type());
 		draw_voronoi(delauney, subdiv);
 
-		imshow("Delauney", delauney);
+		//Scalar delaunay_color(255, 255, 255), points_color(0, 0, 255);
+		//draw_delaunay(delauney, subdiv, delaunay_color);
+
+		//imshow("Delauney", delauney);
+
+		Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1, 1));
+		Mat element1 = getStructuringElement(MORPH_RECT, Size(5, 5), Point(2, 2));
+		//threshold(delauney, delauney, 240, 255, 1);
+		erode(delauney, delauney, element);
+		dilate(delauney, delauney, element1);
 
 		/*Mat layoutImg;
 		Mat thrshImg;
@@ -329,20 +348,7 @@ namespace VoronoiLayout
 		threshold(thrshImg, thrshImg, 100, 255, THRESH_BINARY);*/
 
 		vector<Rect> newBoundingRects;
-		/*while (!UpdateBoundingRects(thrshImg, boundingRects, newBoundingRects, 10))
-		{
-			waitKey(10);
-			src.copyTo(layoutImg);
-			DrawBoundingRects(layoutImg, newBoundingRects, outcolor);
-			imshow("Contours - Layout", layoutImg);
-		}
-
-		waitKey(500);
-		src.copyTo(layoutImg);
-		DrawBoundingRects(layoutImg, newBoundingRects, outcolor);
-		imshow("Contours - Layout", layoutImg);
-		
-		*/
+		while (!UpdateBoundingRects(delauney, boundingRects, newBoundingRects, 20));
 
 #ifdef _DEBUG
 		waitKey(0);
