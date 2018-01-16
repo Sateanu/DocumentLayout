@@ -258,7 +258,9 @@ namespace GeometricLayout
 			rectangle(contoursImg, brect, color, 1);
 		}
 
+#ifdef _DEBUG
 		imshow("Contours", contoursImg);
+#endif // _DEBUG
 		Mat layoutImg;
 		Mat thrshImg;
 		cvtColor(src, thrshImg, CV_BGR2GRAY);

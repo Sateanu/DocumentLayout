@@ -300,7 +300,9 @@ namespace VoronoiLayout
 		//HoughLines(grayScale, cannyOutput, CV_PI / 180, 15, 100);
 
 		
+#ifdef _DEBUG
 		imshow("Canny", cannyOutput);
+#endif // _DEBUG
 		//waitKey(0);
 
 		//Contours
@@ -327,7 +329,9 @@ namespace VoronoiLayout
 			}
 		}
 
+#ifdef _DEBUG
 		imshow("Contours", contoursImg);
+#endif // _DEBUG
 		Mat delauney = Mat::zeros(grayScale.size(), grayScale.type());
 		draw_voronoi(delauney, subdiv);
 
