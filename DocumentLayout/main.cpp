@@ -15,7 +15,7 @@ using namespace std;
 
 int main()
 {
-	Mat src = imread("pic1.png");
+	Mat src = imread("pic3.png");
 	
 	if (src.empty())
 	{
