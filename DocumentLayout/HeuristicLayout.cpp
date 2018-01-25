@@ -4,41 +4,12 @@ namespace HeuristicLayout
 {
 	using namespace cv;
 
-	float getEntropy(const Mat& frame)
-	{
-		const size_t total = frame.total();
-		if (total == 0)
-			return 0.f;
-
-		const int histSize = 256;
-		/// Set the ranges ( for B,G,R) )
-		const float range[] = { 0, 256 };
-		const float* histRange = { range };
-
-		Mat hist;
-
-		/// Compute the histograms:
-		calcHist(&frame, 1, 0, Mat(), hist, 1, &histSize, &histRange);
-		hist /= total;
-
-		Mat logP;
-		cv::log(hist, logP);
-		logP.forEach<float>([](float &p, const int * position) -> void {
-			if (isinf(p))
-				p = 0.f;
-		});
-
-		float entropy = -1 * sum(hist.mul(logP)).val[0];
-
-		return entropy;
-	}
-
-	float getStdDev(const Mat& frame)
+	float getStdDev(const Mat& frame, const InputOutputArray& mask = noArray())
 	{
 		Mat mean;
 		Mat stddev;
 
-		meanStdDev(frame, mean, stddev);
+		meanStdDev(frame, mean, stddev, mask);
 
 		return stddev.at<double>(0, 0);
 	}
@@ -156,94 +127,173 @@ namespace HeuristicLayout
 		//return ret;
 	}
 
+	float getEntropy(const Mat& frame, const Mat& mask = Mat())
+	{
+		const size_t total = mask.empty() ? frame.total() : countNonZero(mask);
+
+		if (total == 0)
+			return 0.f;
+
+		const int histSize = 256;
+		/// Set the ranges ( for B,G,R) )
+		const float range[] = { 0, 256 };
+		const float* histRange = { range };
+
+		Mat hist;
+
+		/// Compute the histograms:
+		calcHist(&frame, 1, 0, mask, hist, 1, &histSize, &histRange);
+		hist /= total;
+
+		Mat logP;
+		cv::log(hist, logP);
+		logP.forEach<float>([](float &p, const int * position) -> void {
+			if (isinf(p))
+				p = 0.f;
+		});
+
+		float entropy = -1 * sum(hist.mul(logP)).val[0];
+
+		return entropy;
+	}
+
+	Mat GetMask(const Mat &subMat, const vector<Point> &contour)
+	{
+		Mat mask(subMat.size(), CV_8U, Scalar(0));
+
+		Size origSize;
+		Point offset;
+		subMat.locateROI(origSize, offset);
+
+		auto offsetPoints = contour;
+		for (auto& p : offsetPoints)
+			p -= offset;
+
+		fillConvexPoly(mask, offsetPoints, Scalar(255));
+
+		return mask;
+	}
+
 	std::vector<Rect> DetectLayout(Mat document)
 	{
 		Mat original = document.clone();
+		Mat originalGray;
 
 		if (document.channels() != 1)
 		{
 			document = document.clone();
 			cvtColor(document, document, CV_BGR2GRAY);
 		}
+		
+		originalGray = document.clone();
 
-		float sizeMaxRatio = 128.f / (float)std::max(document.rows, document.cols);
+		Mat originalThr;
+		threshold(originalGray, originalThr, 128, 255, 1);
+
+		float sizeMaxRatio = 256.f / (float)std::max(document.rows, document.cols);
 
 		// downsample for faster and better processing
 		resize(document, document, Size(), sizeMaxRatio, sizeMaxRatio, INTER_CUBIC);
 		//blur(document, document, Size(3, 3));
-		
-		threshold(document, document, 240, 255, 1);
-		
-		Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1, 1));
-		dilate(document, document, element);
-		erode(document, document, element);
 
+		Mat thrMat;
+		threshold(document, thrMat, 240, 255, 1);
+
+		Mat thrMatFull;
+		threshold(originalGray, thrMatFull, 240, 255, 1);
+
+		Mat element = getStructuringElement(MORPH_RECT, Size(3, 3), Point(1, 1));
+		Mat elementCr = getStructuringElement(MORPH_CROSS, Size(3, 3), Point(1, 1));
+		Mat element3 = getStructuringElement(MORPH_CROSS, Size(9, 9), Point(4, 4));
+		Mat elementSq = getStructuringElement(MORPH_RECT, Size(9, 9), Point(4, 4));
+
+		Mat cannyOut;
+		Canny(original, cannyOut, 150, 200);
+		
+		cannyOut.convertTo(cannyOut, CV_8U);
+
+		dilate(cannyOut, cannyOut, element3);
+		//erode(cannyOut, cannyOut, elementSq);
+
+		Mat cannySmall;
+		resize(cannyOut, cannySmall, Size(), sizeMaxRatio, sizeMaxRatio, INTER_NEAREST);
+		dilate(cannySmall, cannySmall, element);
+		erode (cannySmall, cannySmall, element);
+
+		//////////////////////////////////////////////////////////////////////////
+		//thrMat = cannySmall;
+		//////////////////////////////////////////////////////////////////////////
+
+		Mat cannyOutDraw = cannyOut.clone();
+		cvtColor(cannyOutDraw, cannyOutDraw, CV_GRAY2BGR);
+
+		{
+			vector <vector<Point>> contours;
+			vector<Vec4i> hierarchy;
+			//findContours(morpthMat, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+			findContours(cannyOut, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+			for (int i = contours.size()-1; i >= 0; i--)
+			{
+				const vector<Point> &contour = contours[i];
+// 				if (contour.size() < 3)
+// 					continue;
+
+				Rect brect = boundingRect(contour);
+
+#ifdef _DEBUG
+				rectangle(color_dst, brect, outcolor, 1);
+#endif // _DEBUG
+
+				Rect smallRect(brect.tl() * sizeMaxRatio, brect.br() * sizeMaxRatio);
+
+				if (smallRect.width == 0 || smallRect.height == 0)
+					continue;
+
+				drawContours(cannyOutDraw, contours, i, Scalar(255,0,255), 2, 8, hierarchy, 0, Point());
+
+				for (int j = 0; j < contour.size(); j++)
+					contours[i][j] *= sizeMaxRatio;
+
+				Mat subMat = cannySmall(smallRect);
+				Mat subMatDoc = document(smallRect);
+				Mat mask = GetMask(subMat, contour);
+
+				Mat subMatThr = thrMat(smallRect);
+				Mat compositeMask;
+ 				//bitwise_or(mask, subMat, compositeMask);
+ 				bitwise_and(mask, subMatThr, compositeMask);
+				//compositeMask = mask;
+
+				const float entropy = getEntropy(subMatDoc, compositeMask);
+				const float stddev = getStdDev(subMatDoc, compositeMask);
+				
+				if (entropy > 2.5f)
+				{
+					bitwise_xor(subMatThr, subMatThr, subMatThr, compositeMask);
+				}
+			}
+		}
+
+		Mat morpthMat = thrMat.clone();
+		dilate(morpthMat, morpthMat, element);
+
+		bitwise_and(morpthMat, cannySmall, morpthMat);
+		erode(morpthMat, morpthMat, elementCr);
 
 		const float sizeMin = std::min(document.rows, document.cols);
 		const float sizeMax = std::max(document.rows, document.cols);
 		std::vector<Rect> ret;
 
-		std::vector<Vec4i> lines;
-		//std::vector<Vec2f> lines;
-
-		std::vector<unsigned> xs, ys;
-		xs.push_back(0); ys.push_back(0);
-		//xs.push_back(document.cols / 2); ys.push_back( document.rows / 2);
-
 #ifdef _DEBUG
 		Mat color_dst;
 		cvtColor(document, color_dst, CV_GRAY2BGR);
-		namedWindow("Lines", 0);
 #endif // _DEBUG
-
-// 		HoughLinesP(document, lines, 1.0, CV_PI / 2.0, sizeMin / 4.0, 4);
-// 		//HoughLines(document, lines, 1.0, CV_PI / 4.0, 1, 1, 1, 0, CV_PI / 2.0);
-// 
-// 		for (size_t i = 0; i < lines.size(); i++)
-// 		{
-// #ifdef _DEBUG
-// 			Point start, end;
-// 
-// 			start = Point(lines[i][0], lines[i][1]);
-// 			end   = Point(lines[i][2], lines[i][3]);
-// 
-// // 			if (abs(lines[i][1] - CV_PI / 2.0) < 0.00001f) // horizontal
-// // 			{
-// // 				start.x = 0;
-// // 				start.y = lines[i][0];
-// // 				end.x = document.cols;
-// // 				end.y = lines[i][0];
-// // 			}
-// // 			else if (abs(lines[i][1]) < 0.00001f) // vertical
-// // 			{
-// // 				start.x = lines[i][0];
-// // 				start.y = 0;
-// // 				end.x = lines[i][0];
-// // 				end.y = document.rows;
-// // 			}
-// 
-// 			line(color_dst, start, end, Scalar(0, 255, 0), 1, 8);
-// #endif // _DEBUG
-// 
-// 			imshow("Lines", color_dst);
-//			waitKey(100);
-// 
-// 			if (start.x == end.x)
-// 			{
-// 				xs.push_back(lines[i][0]);
-// 				continue;
-// 			}
-// 
-// 			if (start.y == end.y)
-// 			{
-// 				ys.push_back(lines[i][1]);
-// 				continue;
-// 			}
-// 		}
 
 		vector <vector<Point>> contours;
 		vector<Vec4i> hierarchy;
-		findContours(document, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+		findContours(morpthMat, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+		//findContours(thrMat, contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 
 		Scalar outcolor = Scalar(255, 0, 0);
 
@@ -256,6 +306,16 @@ namespace HeuristicLayout
 			rectangle(color_dst, brect, outcolor, 1);
 #endif // _DEBUG
 
+// 			Mat subMat = thrMat(brect);
+// 			Mat subMatDoc = document(brect);
+// 			Mat mask = GetMask(subMat, contours[i]);
+// 			
+// 			const float entropy = getEntropy(subMatDoc, mask);
+
+			for (int j = 0; j < contours[i].size(); j++)
+				contours[i][j] /= sizeMaxRatio;
+
+			//drawContours(original, contours, i, color, 2, 8, hierarchy, 0, Point());
 
 			brect.x /= sizeMaxRatio;
 			brect.y /= sizeMaxRatio;
@@ -267,7 +327,6 @@ namespace HeuristicLayout
 		}
 
 #ifdef _DEBUG
-		imshow("Lines", color_dst);
 		imshow("Layout", original);
 		waitKey(0);
 #endif // _DEBUG
@@ -275,4 +334,51 @@ namespace HeuristicLayout
 		return ret;
 	}
 
+
+#pragma region HOUGH LINES OLD
+	// 		HoughLinesP(document, lines, 1.0, CV_PI / 2.0, sizeMin / 4.0, 4);
+	// 		//HoughLines(document, lines, 1.0, CV_PI / 4.0, 1, 1, 1, 0, CV_PI / 2.0);
+	// 
+	// 		for (size_t i = 0; i < lines.size(); i++)
+	// 		{
+	// #ifdef _DEBUG
+	// 			Point start, end;
+	// 
+	// 			start = Point(lines[i][0], lines[i][1]);
+	// 			end   = Point(lines[i][2], lines[i][3]);
+	// 
+	// // 			if (abs(lines[i][1] - CV_PI / 2.0) < 0.00001f) // horizontal
+	// // 			{
+	// // 				start.x = 0;
+	// // 				start.y = lines[i][0];
+	// // 				end.x = document.cols;
+	// // 				end.y = lines[i][0];
+	// // 			}
+	// // 			else if (abs(lines[i][1]) < 0.00001f) // vertical
+	// // 			{
+	// // 				start.x = lines[i][0];
+	// // 				start.y = 0;
+	// // 				end.x = lines[i][0];
+	// // 				end.y = document.rows;
+	// // 			}
+	// 
+	// 			line(color_dst, start, end, Scalar(0, 255, 0), 1, 8);
+	// #endif // _DEBUG
+	// 
+	// 			imshow("Lines", color_dst);
+	//			waitKey(100);
+	// 
+	// 			if (start.x == end.x)
+	// 			{
+	// 				xs.push_back(lines[i][0]);
+	// 				continue;
+	// 			}
+	// 
+	// 			if (start.y == end.y)
+	// 			{
+	// 				ys.push_back(lines[i][1]);
+	// 				continue;
+	// 			}
+	// 		}
+#pragma endregion HOUGH LINES OLD
 }
